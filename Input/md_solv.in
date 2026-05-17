@@ -1,0 +1,16 @@
+MD solvent
+    &cntrl
+        imin=0,
+        ntx=1, irest=0,
+        ntxo=2, ntpr=10000, ntwr=10000000, ntwx=10000, ioutfm=1,
+        ntr=1, restraint_wt=100, restraintmask=':1-116,118-154,160-432,434-456&!@H=',
+        nstlim=10000000, dt=0.002,
+        ntt=3, temp0=310, ig=-1, tempi=310, gamma_ln=2.0,
+        ntp=1, barostat=2, pres0=1.0, mcbarint=100,
+        ntc=2,
+        ntf=2, ntb=2, cut=10.,
+    /
+    &ewald
+        ew_type=0, use_pme=1,
+    /
+

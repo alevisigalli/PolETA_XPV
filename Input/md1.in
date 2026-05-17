@@ -1,0 +1,15 @@
+Thermalization: temperature fix to 100K
+    &cntrl
+        imin=0,
+        ntx=1, irest=0,
+        ntxo=2, ntpr=10000, ntwr=10000000, ntwx=10000, ioutfm=1,
+        ntr=1, restraint_wt=100, restraintmask=':1-432@N,CA,C,O | :433-453@P | :454-457@MG',
+        nstlim=100000, dt=0.001,
+        ntt=3, temp0=100, ig=-1, tempi=100, gamma_ln=5.0,
+        ntc=2,
+        ntf=2, ntb=1, cut=10.,
+    /
+    &ewald
+        ew_type=0, use_pme=1,
+    /
+    
