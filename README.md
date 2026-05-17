@@ -2,7 +2,7 @@ Supporting data for the paper:
 
 # Decoding Cancer-Associated Mutations in DNA Polymerase η through atomistic simulations.
 
-[![DOI](https://img.shields.io/badge/DOI-10.1021%2Fjtct.6c00345-darkgreen)](https://doi.org/10.1021/acs.jctc.6c00345.)
+[![DOI](https://img.shields.io/badge/DOI-10.1021%2Fjctc.6c00345-darkgreen)](https://doi.org/10.1021/acs.jctc.6c00345)
 
 This repository contains the input files and simulation protocols used for molecular dynamics (MD) simulations of Xeroderma Pigmentosum Variant (XP-V)-associated mutations in human DNA polymerase η (Polη) in complex with DNA.
 
