@@ -1,0 +1,70 @@
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks=24
+#SBATCH --cpus-per-task=2
+#SBATCH --gres=gpu:4
+#SBATCH --time=23:50:00
+#SBATCH --account=xpvmut
+#SBATCH --partition=booster
+#SBATCH --job-name=A117P
+#SBATCH --mail-user=a.visigalli@fz-juelich.de
+#SBATCH --mail-type=ALL
+
+source ~/.bashrc
+
+module load Stages/2025
+module load GCC ParaStationMPI
+
+module use /p/usersoftware/swmanage/sankaran2/stages2025/plumed-pyt-amber/easybuild/juwelsbooster/modules/all/MPI/GCC/13.3.0/psmpi/5
+
+module load AMBER/24-pbsa-limited-plumed-pyt
+
+export input_path="/p/scratch/xpvmut/visigalli1/polh/"
+
+for gpu in 0 1 2 3; do
+    export CUDA_VISIBLE_DEVICES=$gpu
+    (
+        case $gpu in
+            0) mutation='A117P'; state='pre';   replica='replica1'; ;;
+            1) mutation='A117P'; state='pre';   replica='replica2'; ;;
+            2) mutation='A117P'; state='pre';  replica='replica3'; ;;
+            3) mutation='A117P'; state='pre';  replica='replica4'; ;;
+        esac
+
+	output_path="/p/scratch/xpvmut/visigalli1/polh/$mutation/$state/$replica"
+
+	leap="/p/scratch/xpvmut/visigalli1/polh/input"
+
+	# --- PRODUZIONE ---
+        # Cerca l'ultimo md-*.rst, altrimenti fallback
+        latest_run=$(ls "$output_path"/md-*.rst 2>/dev/null | sort -V | tail -n 1)
+
+        if [ -n "$latest_run" ]; then
+            prev_rst="$latest_run"
+            prod_run=$(echo "$latest_run" | grep -oP '\d+' | tail -n 1)
+            prod_run=$((prod_run + 1))
+        else
+            prev_rst="$output_path/md-3.rst"
+            prod_run=4
+        fi
+
+        echo "GPU $gpu starting production with $prev_rst -> md-$prod_run.rst"
+
+        while [ ! -f "$output_path/md-$prod_run.rst" ]; do
+            pmemd.cuda_SPFP -O \
+                -p $output_path/${mutation}_${state}_all.prmtop \
+                -i $leap/md_equil.in \
+                -c "$prev_rst" \
+                -o "$output_path/md-$prod_run.out" \
+                -x "$output_path/md-$prod_run.xtc" \
+                -r "$output_path/md-$prod_run.rst" \
+                -inf "$output_path/mdinfo"
+
+            prev_rst="$output_path/md-$prod_run.rst"
+            prod_run=$((prod_run + 1))
+        done
+
+    ) &
+done
+
+wait

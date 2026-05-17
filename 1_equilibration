@@ -1,0 +1,117 @@
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks=24
+#SBATCH --cpus-per-task=2
+#SBATCH --gres=gpu:4
+#SBATCH --time=10:00:00
+#SBATCH --account=xpvmut
+#SBATCH --partition=booster
+#SBATCH --job-name=A117P
+#SBATCH --mail-user=a.visigalli@fz-juelich.de
+#SBATCH --mail-type=ALL
+
+source ~/.bashrc
+
+module purge
+module load Stages/2025
+module load GCC ParaStationMPI
+module use /p/usersoftware/swmanage/sankaran2/stages2025/plumed-pyt-amber/easybuild/juwelsbooster/modules/all/MPI/GCC/13.3.0/psmpi/5
+module load AMBER/24-pbsa-limited-plumed-pyt
+
+export input_path="/p/scratch/xpvmut/visigalli1/polh/"
+
+for gpu in 0 1 2 3; do
+    export CUDA_VISIBLE_DEVICES=$gpu
+    (
+        case $gpu in
+            0) mutation='A117P'; state='pre';   replica='replica1'; ;;
+            1) mutation='A117P'; state='pre';   replica='replica2'; ;;
+            2) mutation='A117P'; state='pre';   replica='replica3'; ;;
+            3) mutation='A117P'; state='pre';  replica='replica4'; ;;
+        esac
+
+
+        output_path="/p/scratch/xpvmut/visigalli1/polh/$mutation/$state/$replica"
+        
+	leap="/p/scratch/xpvmut/visigalli1/polh/input"
+
+            if [ ! -f "$output_path/min.rst" ]; then
+		    echo "GPU $gpu (system ${mutation}_${state}_${replica}) starting minimization with min.in"
+                pmemd.cuda_SPFP -O -p $output_path/${mutation}_${state}_all.prmtop \
+                    -i $input_path/$mutation/min_${state}.in \
+                    -c $output_path/${mutation}_${state}_all.rst \
+                    -r $output_path/min.rst -x $output_path/min.xtc \
+                    -o $output_path/min.out \
+                    -ref $output_path/${mutation}_${state}_all.rst \
+                    -inf $output_path/mdinfo
+            fi
+
+            if [ ! -f "$output_path/md-solv.rst" ]; then
+		    echo "GPU $gpu (system ${mutation}_${state}_${replica}) starting solvent dynamics with md-solv.in"
+                pmemd.cuda_SPFP -O -p $output_path/${mutation}_${state}_all.prmtop \
+                    -i $input_path/$mutation/md_solv_${state}.in \
+                    -c $output_path/min.rst \
+                    -r $output_path/md-solv.rst -x $output_path/md-solv.xtc \
+                    -o $output_path/md-solv.out \
+                    -ref $output_path/min.rst \
+                    -inf $output_path/mdinfo
+            fi
+
+            if [ ! -f "$output_path/min-1.rst" ]; then
+		    echo "GPU $gpu (system ${mutation}_${state}_${replica}) starting minimization restrained with min1.in"
+                pmemd.cuda_SPFP -O -p $output_path/${mutation}_${state}_all.prmtop \
+                    -i $leap/min1.in \
+                    -c $output_path/md-solv.rst \
+                    -r $output_path/min-1.rst -x $output_path/min-1.xtc \
+                    -o $output_path/min-1.out \
+                    -ref $output_path/md-solv.rst \
+                    -inf $output_path/mdinfo
+            fi
+
+            if [ ! -f "$output_path/min-2.rst" ]; then
+		    echo "GPU $gpu (system ${mutation}_${state}_${replica}) starting total minimization with min2.in"
+                pmemd.cuda_SPFP -O -p $output_path/${mutation}_${state}_all.prmtop \
+                    -i $leap/min2.in \
+                    -c $output_path/min-1.rst \
+                    -r $output_path/min-2.rst -x $output_path/min-2.xtc \
+                    -o $output_path/min-2.out \
+                    -inf $output_path/mdinfo
+            fi
+
+            if [ ! -f "$output_path/md-1.rst" ]; then
+		    echo "GPU $gpu (system ${mutation}_${state}_${replica}) starting thermalization at 100 K with md1.in"
+                pmemd.cuda_SPFP -O -p $output_path/${mutation}_${state}_all.prmtop \
+                    -i $leap/md1.in \
+                    -c $output_path/min-2.rst \
+                    -r $output_path/md-1.rst -x $output_path/md-1.xtc \
+                    -o $output_path/md-1.out \
+                    -ref $output_path/min-2.rst \
+                    -inf $output_path/mdinfo
+            fi
+
+            if [ ! -f "$output_path/md-2.rst" ]; then
+		    echo "GPU $gpu (system ${mutation}_${state}_${replica}) starting increasing temperature to 310 K with md2.in"
+                pmemd.cuda_SPFP -O -p $output_path/${mutation}_${state}_all.prmtop \
+                    -i $leap/md2.in \
+                    -c $output_path/md-1.rst \
+                    -r $output_path/md-2.rst -x $output_path/md-2.xtc \
+                    -o $output_path/md-2.out \
+                    -ref $output_path/md-1.rst \
+                    -inf $output_path/mdinfo
+            fi
+
+            if [ ! -f "$output_path/md-3.rst" ]; then
+			echo "GPU $gpu (system ${mutation}_${state}_${replica}) starting thermalization at 310 K with md3.in"
+                pmemd.cuda_SPFP -O -p $output_path/${mutation}_${state}_all.prmtop \
+                    -i $leap/md3.in \
+                    -c $output_path/md-2.rst \
+                    -r $output_path/md-3.rst -x $output_path/md-3.xtc \
+                    -o $output_path/md-3.out \
+                    -inf $output_path/mdinfo
+            fi 
+	
+	echo "GPU $gpu end equilibration"
+    ) &
+done
+
+wait
